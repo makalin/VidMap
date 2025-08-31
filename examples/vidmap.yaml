@@ -1,0 +1,68 @@
+# VidMap Configuration Example
+# This file shows all available configuration options
+
+project: demo
+description: "Example VidMap project for demonstration"
+
+# Storage configuration
+storage:
+  backend: sqlite
+  blob_storage: local
+  blob_path: .vidmap/demo
+
+# ASR (Automatic Speech Recognition) configuration
+asr:
+  engine: whisper
+  model: small
+  language: en
+  device: cpu
+
+# Speaker diarization configuration
+diarization:
+  enabled: true
+  model: pyannote/speaker-diarization
+  min_speakers: 1
+  max_speakers: 5
+
+# OCR (Optical Character Recognition) configuration
+ocr:
+  enabled: true
+  engine: tesseract
+  languages: [eng]
+  confidence_threshold: 0.6
+
+# Computer vision configuration
+vision:
+  enabled: true
+  scene_detection: true
+  object_detection: false
+  face_detection: true
+
+# Embeddings configuration
+embeddings:
+  model: all-MiniLM-L6-v2
+  dimension: 384
+  batch_size: 32
+
+# Map tile configuration
+tiles:
+  size: 256
+  overlap: 0
+  levels: 5
+
+# Web UI configuration
+ui:
+  host: 0.0.0.0
+  port: 5173
+  heatmaps: [salience, laughter, silence, slide_density]
+
+# Example for GPU acceleration (uncomment if available)
+# asr:
+#   device: cuda
+# 
+# embeddings:
+#   model: all-mpnet-base-v2
+#   dimension: 768
+# 
+# vision:
+#   object_detection: true

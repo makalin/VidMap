@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidMap - Video Timeline Navigation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            min-width: 120px;
+        }
+
+        .control-group input,
+        .control-group select,
+        .control-group button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .control-group button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .control-group button:hover {
+            background: #5a6fd8;
+        }
+
+        .control-group button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .timeline {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .timeline-controls button {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .timeline-controls button:hover {
+            background: #f5f5f5;
+        }
+
+        .timeline-canvas {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+            min-height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .timeline-tile {
+            position: absolute;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .timeline-tile:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .timeline-tile.scene {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .timeline-tile.audio {
+            background: #f3e5f5;
+            border-color: #9c27b0;
+        }
+
+        .timeline-tile.ocr {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+
+        .search-results {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .search-results h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .result-item {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .result-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .result-item .time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .result-item .content {
+            margin-top: 0.5rem;
+            color: #333;
+        }
+
+        .result-item .score {
+            float: right;
+            background: #667eea;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            border: 1px solid #ffcdd2;
+        }
+
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            border: 1px solid #c8e6c9;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .zoom-controls button {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .zoom-controls button:hover {
+            background: #f5f5f5;
+        }
+
+        .zoom-level {
+            font-weight: 500;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>VidMap</h1>
+        <p>Map-like indexing for long videos with AI-powered scene analysis</p>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="project-select">Project:</label>
+                <select id="project-select">
+                    <option value="">Select a project...</option>
+                </select>
+                <button onclick="loadProjects()">Refresh</button>
+            </div>
+
+            <div class="control-group">
+                <label for="video-select">Video:</label>
+                <select id="video-select" disabled>
+                    <option value="">Select a video...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="search-query">Search:</label>
+                <input type="text" id="search-query" placeholder="Enter search query...">
+                <button onclick="searchContent()">Search</button>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-header">
+                <h3>Timeline Map</h3>
+                <div class="timeline-controls">
+                    <div class="zoom-controls">
+                        <button onclick="zoomOut()">−</button>
+                        <span class="zoom-level">Level: <span id="current-zoom">0</span></span>
+                        <button onclick="zoomIn()">+</button>
+                    </div>
+                    <button onclick="refreshTimeline()">Refresh</button>
+                </div>
+            </div>
+            <div class="timeline-canvas" id="timeline-canvas">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading timeline...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-results">
+            <h3>Search Results</h3>
+            <div id="search-results">
+                <p>Enter a search query above to find content in your videos.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProject = null;
+        let currentVideo = null;
+        let currentZoom = 0;
+        let timelineData = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjects();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('project-select').addEventListener('change', function() {
+                currentProject = this.value;
+                if (currentProject) {
+                    loadProjectVideos(currentProject);
+                } else {
+                    document.getElementById('video-select').disabled = true;
+                    document.getElementById('video-select').innerHTML = '<option value="">Select a video...</option>';
+                }
+            });
+
+            document.getElementById('video-select').addEventListener('change', function() {
+                currentVideo = this.value;
+                if (currentVideo) {
+                    loadTimeline();
+                }
+            });
+
+            document.getElementById('search-query').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchContent();
+                }
+            });
+        }
+
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                
+                const select = document.getElementById('project-select');
+                select.innerHTML = '<option value="">Select a project...</option>';
+                
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.name;
+                    option.textContent = project.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showError('Failed to load projects: ' + error.message);
+            }
+        }
+
+        async function loadProjectVideos(projectName) {
+            try {
+                const response = await fetch(`/api/projects/${projectName}`);
+                const project = await response.json();
+                
+                const select = document.getElementById('video-select');
+                select.innerHTML = '<option value="">Select a video...</option>';
+                
+                project.videos.forEach(video => {
+                    const option = document.createElement('option');
+                    option.value = video.id;
+                    option.textContent = `${video.title} (${formatDuration(video.duration)})`;
+                    select.appendChild(option);
+                });
+                
+                select.disabled = false;
+            } catch (error) {
+                showError('Failed to load project videos: ' + error.message);
+            }
+        }
+
+        async function loadTimeline() {
+            if (!currentProject || !currentVideo) return;
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`/api/projects/${currentProject}/map?video_id=${currentVideo}&level=${currentZoom}&x=0&y=0`);
+                timelineData = await response.json();
+                
+                renderTimeline();
+            } catch (error) {
+                showError('Failed to load timeline: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderTimeline() {
+            const canvas = document.getElementById('timeline-canvas');
+            canvas.innerHTML = '';
+            
+            if (!timelineData || timelineData.error) {
+                canvas.innerHTML = '<p>No timeline data available</p>';
+                return;
+            }
+            
+            // Create a simple timeline visualization
+            const timeline = document.createElement('div');
+            timeline.style.position = 'relative';
+            timeline.style.height = '200px';
+            timeline.style.width = '100%';
+            
+            // Add timeline segments
+            if (timelineData.segments && timelineData.segments.length > 0) {
+                timelineData.segments.forEach((segment, index) => {
+                    const tile = document.createElement('div');
+                    tile.className = `timeline-tile ${segment.type}`;
+                    tile.style.left = `${(segment.start_time / timelineData.duration) * 100}%`;
+                    tile.style.width = `${(segment.duration / timelineData.duration) * 100}%`;
+                    tile.style.height = '60px';
+                    tile.style.top = '20px';
+                    tile.title = `${segment.type}: ${segment.start_time.toFixed(1)}s - ${segment.end_time.toFixed(1)}s`;
+                    
+                    const content = document.createElement('div');
+                    content.textContent = segment.type.charAt(0).toUpperCase() + segment.type.slice(1);
+                    tile.appendChild(content);
+                    
+                    tile.addEventListener('click', () => {
+                        // Handle tile click - could jump to video timestamp
+                        console.log(`Clicked ${segment.type} at ${segment.start_time}s`);
+                    });
+                    
+                    timeline.appendChild(tile);
+                });
+            }
+            
+            // Add time markers
+            const timeMarkers = document.createElement('div');
+            timeMarkers.style.position = 'absolute';
+            timeMarkers.style.bottom = '0';
+            timeMarkers.style.left = '0';
+            timeMarkers.style.right = '0';
+            timeMarkers.style.height = '20px';
+            timeMarkers.style.borderTop = '1px solid #ddd';
+            
+            for (let i = 0; i <= 10; i++) {
+                const marker = document.createElement('div');
+                marker.style.position = 'absolute';
+                marker.style.left = `${(i / 10) * 100}%`;
+                marker.style.top = '0';
+                marker.style.width = '1px';
+                marker.style.height = '20px';
+                marker.style.background = '#ddd';
+                
+                const label = document.createElement('div');
+                label.style.position = 'absolute';
+                label.style.left = '-20px';
+                label.style.top = '20px';
+                label.style.fontSize = '0.8rem';
+                label.style.color = '#666';
+                label.textContent = formatDuration((i / 10) * timelineData.duration);
+                
+                marker.appendChild(label);
+                timeMarkers.appendChild(marker);
+            }
+            
+            timeline.appendChild(timeMarkers);
+            canvas.appendChild(timeline);
+        }
+
+        async function searchContent() {
+            const query = document.getElementById('search-query').value.trim();
+            if (!query || !currentProject) return;
+            
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '<div class="loading show"><div class="spinner"></div><p>Searching...</p></div>';
+            
+            try {
+                const response = await fetch(`/api/projects/${currentProject}/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    resultsDiv.innerHTML = `<h3>Search Results for "${query}" (${data.total_results})</h3>`;
+                    
+                    data.results.forEach(result => {
+                        const resultItem = document.createElement('div');
+                        resultItem.className = 'result-item';
+                        resultItem.innerHTML = `
+                            <span class="score">${result.relevance_score.toFixed(2)}</span>
+                            <div class="time">${formatDuration(result.start_time)} - ${formatDuration(result.end_time)}</div>
+                            <div class="content">${result.matched_text}</div>
+                        `;
+                        
+                        resultItem.addEventListener('click', () => {
+                            // Handle result click - could jump to video timestamp
+                            console.log(`Clicked result at ${result.start_time}s`);
+                        });
+                        
+                        resultsDiv.appendChild(resultItem);
+                    });
+                } else {
+                    resultsDiv.innerHTML = `<h3>No results found for "${query}"</h3><p>Try a different search term.</p>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Search failed: ${error.message}</div>`;
+            }
+        }
+
+        function zoomIn() {
+            if (currentZoom < 4) {
+                currentZoom++;
+                document.getElementById('current-zoom').textContent = currentZoom;
+                if (currentProject && currentVideo) {
+                    loadTimeline();
+                }
+            }
+        }
+
+        function zoomOut() {
+            if (currentZoom > 0) {
+                currentZoom--;
+                document.getElementById('current-zoom').textContent = currentZoom;
+                if (currentProject && currentVideo) {
+                    loadTimeline();
+                }
+            }
+        }
+
+        function refreshTimeline() {
+            if (currentProject && currentVideo) {
+                loadTimeline();
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.querySelector('.loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const container = document.querySelector('.container');
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            container.insertBefore(successDiv, container.firstChild);
+            
+            setTimeout(() => {
+                successDiv.remove();
+            }, 5000);
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+    </script>
+</body>
+</html>
